@@ -3,6 +3,7 @@ use hare::ast;
 type import = struct {
 	path: ast::ident,
 	alias: str,
+	used: bool,
 };
 
 type impinfo = struct {
@@ -14,6 +15,43 @@ fn getimp(imp: *impinfo, imports: []ast::import) void = {
 		append(imp.modules, import {
 			path = imports[i].ident,
 			alias = imports[i].alias,
+			used = false,
 		});
 	};
+};
+
+fn match_full_qual(imp: import, ident: ast::ident) bool = {
+	for (let i = 0z; i < len(imp.path); i += 1) {
+		if (i >= len(ident) - 1) {
+			return false;
+		};
+		if (imp.path[i] != ident[i]) {
+			return false;
+		};
+	};
+	return true;
+};
+
+fn check_import(imp: import, ident: ast::ident) bool = {
+	if (match_full_qual(imp, ident)) {
+		return true;
+	};
+
+	return ident[0] == imp.path[len(imp.path) - 1];
+};
+
+// Registers the use of [[ident]] with the existing imports, and returns false
+// if [[ident]] comes from a module that has not been imported.
+fn register(imp: *impinfo, ident: ast::ident) bool = {
+	if (len(ident) <= 1) {
+		return true;
+	};
+	let valid = false;
+	for (let i = 0z; i < len(imp.modules); i += 1) {
+		if (check_import(imp.modules[i], ident)) {
+			valid = true;
+			imp.modules[i].used = true;
+		};
+	};
+	return valid;
 };

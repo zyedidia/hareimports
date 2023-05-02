@@ -1,1 +1,5 @@
-type x = lex::y;
+use hare::lex;
+
+fn main() void = {
+	lex::hello;
+};

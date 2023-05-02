@@ -1,5 +1,4 @@
 use hare::ast;
-use fmt;
 
 type expinfo = struct {
 	types: []ast::ident,
