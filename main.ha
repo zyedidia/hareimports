@@ -1,15 +1,15 @@
-use fmt;
-use types;
-use encoding::utf8;
-use os;
 use bufio;
-use io;
+use encoding::utf8;
+use fmt;
 use fs;
-use sort;
+use hare::ast;
 use hare::lex;
 use hare::parse;
-use hare::ast;
 use hare::unparse;
+use io;
+use os;
+use sort;
+use types;
 
 export fn main() void = {
 	if (len(os::args) <= 1) {
