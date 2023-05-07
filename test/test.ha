@@ -1,5 +1,10 @@
-use hare::lex;
+use os;
+use fmt;
 
-fn main() void = {
-	lex::hello;
+type fmt = enum {
+	println,
+};
+
+export fn main() void = {
+	fmt::println;
 };

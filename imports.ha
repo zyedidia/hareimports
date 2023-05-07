@@ -1,9 +1,18 @@
+use strings;
 use hare::ast;
+use hare::unparse;
 
 type import = struct {
+	imp: ast::import,
 	path: ast::ident,
 	alias: str,
 	used: bool,
+};
+
+fn cmpimport(a: const *void, b: const *void) int = {
+	let a = a: const *import;
+	let b = b: const *import;
+	return strings::compare(unparse::identstr(a.path), unparse::identstr(b.path));
 };
 
 type impinfo = struct {
@@ -12,11 +21,14 @@ type impinfo = struct {
 
 fn getimp(imp: *impinfo, imports: []ast::import) void = {
 	for (let i = 0z; i < len(imports); i += 1) {
-		append(imp.modules, import {
-			path = imports[i].ident,
-			alias = imports[i].alias,
-			used = false,
-		});
+		if (imports[i].mode == ast::import_mode::IDENT) {
+			append(imp.modules, import {
+				imp = imports[i],
+				path = imports[i].ident,
+				alias = imports[i].alias,
+				used = false,
+			});
+		};
 	};
 };
 

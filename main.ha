@@ -1,7 +1,11 @@
 use fmt;
+use types;
+use encoding::utf8;
 use os;
+use bufio;
 use io;
 use fs;
+use sort;
 use hare::lex;
 use hare::parse;
 use hare::ast;
@@ -25,7 +29,7 @@ export fn main() void = {
 };
 
 fn check_file(file: io::handle, name: str) void = {
-	let lexer = lex::init(file, os::args[1], lex::flags::COMMENTS);
+	let lexer = lex::init(file, name, lex::flags::COMMENTS);
 
 	let unit = match (parse::subunit(&lexer)) {
 	case let unit: ast::subunit =>
@@ -41,9 +45,43 @@ fn check_file(file: io::handle, name: str) void = {
 		visit_decl(&imp, unit.decls[i]);
 	};
 
-	for (let i = 0z; i < len(imp.modules); i += 1) {
-		if (!imp.modules[i].used) {
-			fmt::printfln("{}: unused import: {}", name, unparse::identstr(imp.modules[i].path))!;
+	// TODO: have a diagnostic option
+	// for (let i = 0z; i < len(imp.modules); i += 1) {
+	// 	if (!imp.modules[i].used) {
+	// 		fmt::printfln("{}: unused import: {}", name, unparse::identstr(imp.modules[i].path))!;
+	// 	};
+	// };
+
+	io::seek(file, 0, io::whence::SET)!;
+	let scan = bufio::newscanner(file, types::SIZE_MAX);
+
+	// TODO: check if there are no modules
+	let first = imp.modules[0].imp.start.line;
+	let last = imp.modules[len(imp.modules)-1].imp.end.line;
+
+	let line = 0z;
+	for (true) match (bufio::scan_line(&scan)) {
+	case let err: io::error =>
+		fmt::fatalf("{}: error while scanning: {}", name, io::strerror(err));
+	case io::EOF =>
+		break;
+	case utf8::invalid =>
+		break;
+	case let s: const str =>
+		line += 1;
+		if (line == first) {
+			sort::sort(imp.modules, size(import), &cmpimport);
+
+			for (let i = 0z; i < len(imp.modules); i += 1) {
+				if (!imp.modules[i].used) {
+					continue;
+				};
+
+				unparse::import(os::stdout, imp.modules[i].imp)!;
+				fmt::fprintln(os::stdout)!;
+			};
+		} else if (line > last) {
+			fmt::fprintln(os::stdout, s)!;
 		};
 	};
 
@@ -100,12 +138,15 @@ fn visit_decl_func(imp: *impinfo, decl: ast::decl_func) void = {
 	match (decl.body) {
 	case let e: ast::expr =>
 		visit_expr(imp, &e);
+	case => void;
 	};
 };
 
 fn visit_ident(imp: *impinfo, id: ast::ident) void = {
 	if (!register(imp, id)) {
-		fmt::println("use of unimported package:", unparse::identstr(id))!;
+		// TODO: detecting if a package needs to be imported is more complicated
+		// fmt::println("use of unimported package:", unparse::identstr(id))!;
+		void;
 	};
 };
 
