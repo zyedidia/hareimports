@@ -400,6 +400,7 @@ fn visit_type_nullable(imp: *impinfo, _type: nullable *ast::_type) void = {
 };
 
 fn visit_struct_constant(imp: *impinfo, constant: *ast::struct_constant) void = {
+	visit_ident(imp, constant.alias);
 	for (let i = 0z; i < len(constant.fields); i += 1) {
 		match (constant.fields[i]) {
 		case let f: ast::struct_value =>
