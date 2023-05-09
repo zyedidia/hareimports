@@ -95,7 +95,12 @@ fn check_file(file: io::file, name: str, opts: opts) void = {
 fn write_file(out: io::handle, in: io::handle, name: str, imp: *impinfo) void = {
 	let scan = bufio::newscanner(in, types::SIZE_MAX);
 
-	// TODO: check if there are no modules
+	if (len(imp.modules) == 0) {
+		// no modules
+		io::copy(out, in)!;
+		return;
+	};
+
 	let first = imp.modules[0].imp.start.line;
 	let last = imp.modules[len(imp.modules)-1].imp.end.line;
 
