@@ -1,3 +1,7 @@
+// package test does X
+// blah
+//
+
 use os;
 use fmt;
 

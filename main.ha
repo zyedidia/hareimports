@@ -1,6 +1,7 @@
 use bufio;
 use encoding::utf8;
 use fmt;
+use getopt;
 use fs;
 use hare::ast;
 use hare::lex;
@@ -11,24 +12,45 @@ use os;
 use sort;
 use types;
 
+type opts = struct {
+	inplace: bool,
+	warnings: bool,
+};
+
 export fn main() void = {
-	if (len(os::args) <= 1) {
+	const cmd = getopt::parse(os::args,
+		('i', "perform changes in-place"),
+		('w', "provide warning diagnostics"),
+		"[file...]");
+	defer getopt::finish(&cmd);
+
+	if (len(cmd.args) <= 0) {
 		fmt::fatalf("no input");
 	};
 
-	for (let i = 1z; i < len(os::args); i += 1) {
-		const file = match (os::open(os::args[i])) {
+	let opts = opts { ... };
+
+	for (let i = 0z; i < len(cmd.opts); i += 1) {
+		switch (cmd.opts[i].0) {
+		case 'i' =>
+			opts.inplace = true;
+		case 'w' =>
+			opts.warnings = true;
+		};
+	};
+
+	for (let i = 0z; i < len(cmd.args); i += 1) {
+		const file = match (os::open(cmd.args[i])) {
 		case let f: io::file =>
 			yield f;
 		case let err: fs::error =>
-			fmt::fatalf("unable to open {}: {}", os::args[i], fs::strerror(err));
+			fmt::fatalf("unable to open {}: {}", cmd.args[i], fs::strerror(err));
 		};
-		check_file(file, os::args[i]);
-		io::close(file)!;
+		check_file(file, cmd.args[i], opts);
 	};
 };
 
-fn check_file(file: io::handle, name: str) void = {
+fn check_file(file: io::file, name: str, opts: opts) void = {
 	let lexer = lex::init(file, name, lex::flags::COMMENTS);
 
 	let unit = match (parse::subunit(&lexer)) {
@@ -37,6 +59,7 @@ fn check_file(file: io::handle, name: str) void = {
 	case let err: parse::error =>
 		fmt::fatalf("{}: error while parsing: {}", name, parse::strerror(err));
 	};
+	defer ast::subunit_finish(unit);
 
 	let imp = impinfo { ... };
 	getimp(&imp, unit.imports);
@@ -45,15 +68,32 @@ fn check_file(file: io::handle, name: str) void = {
 		visit_decl(&imp, unit.decls[i]);
 	};
 
-	// TODO: have a diagnostic option
-	// for (let i = 0z; i < len(imp.modules); i += 1) {
-	// 	if (!imp.modules[i].used) {
-	// 		fmt::printfln("{}: unused import: {}", name, unparse::identstr(imp.modules[i].path))!;
-	// 	};
-	// };
+	if (opts.warnings) {
+		for (let i = 0z; i < len(imp.modules); i += 1) {
+			if (!imp.modules[i].used) {
+				const loc = imp.modules[i].imp.start;
+				fmt::printfln("{}:{},{}: unused import: {}", loc.path, loc.line, loc.col, unparse::identstr(imp.modules[i].path))!;
+			};
+		};
+		return;
+	};
 
+	let buf = bufio::dynamic(io::mode::RDWR);
 	io::seek(file, 0, io::whence::SET)!;
-	let scan = bufio::newscanner(file, types::SIZE_MAX);
+	write_file(&buf, file, name, &imp);
+	io::close(file)!;
+	if (opts.inplace) {
+		let f = os::create(name, 0o644)!;
+		defer io::close(f)!;
+		io::write(f, bufio::buffer(&buf))!;
+	} else {
+		io::write(os::stdout, bufio::buffer(&buf))!;
+	};
+	io::close(&buf)!;
+};
+
+fn write_file(out: io::handle, in: io::handle, name: str, imp: *impinfo) void = {
+	let scan = bufio::newscanner(in, types::SIZE_MAX);
 
 	// TODO: check if there are no modules
 	let first = imp.modules[0].imp.start.line;
@@ -77,15 +117,13 @@ fn check_file(file: io::handle, name: str) void = {
 					continue;
 				};
 
-				unparse::import(os::stdout, imp.modules[i].imp)!;
-				fmt::fprintln(os::stdout)!;
+				unparse::import(out, imp.modules[i].imp)!;
+				io::write(out, ['\n'])!;
 			};
-		} else if (line > last) {
-			fmt::fprintln(os::stdout, s)!;
+		} else if (line < first || line > last) {
+			fmt::fprintln(out, s)!;
 		};
 	};
-
-	ast::subunit_finish(unit);
 };
 
 fn visit_decl(imp: *impinfo, decl: ast::decl) void = {
