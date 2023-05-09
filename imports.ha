@@ -1,6 +1,6 @@
-use strings;
 use hare::ast;
 use hare::unparse;
+use strings;
 
 type import = struct {
 	imp: ast::import,

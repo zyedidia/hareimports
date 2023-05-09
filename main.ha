@@ -1,8 +1,8 @@
 use bufio;
 use encoding::utf8;
 use fmt;
-use getopt;
 use fs;
+use getopt;
 use hare::ast;
 use hare::lex;
 use hare::parse;
