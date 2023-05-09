@@ -1,3 +1,6 @@
+// License: MPL-2.0
+// (c) 2023 Zachary Yedidia
+
 use hare::ast;
 
 type expinfo = struct {
