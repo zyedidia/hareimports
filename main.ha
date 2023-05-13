@@ -75,7 +75,7 @@ fn check_file(file: io::file, name: str, opts: opts) void = {
 		for (let i = 0z; i < len(imp.modules); i += 1) {
 			if (!imp.modules[i].used) {
 				const loc = imp.modules[i].imp.start;
-				fmt::printfln("{}:{},{}: unused import: {}", loc.path, loc.line, loc.col, unparse::identstr(imp.modules[i].path))!;
+				fmt::printfln("{}:{}:{}: unused import: {}", loc.path, loc.line, loc.col, unparse::identstr(imp.modules[i].path))!;
 			};
 		};
 		return;
