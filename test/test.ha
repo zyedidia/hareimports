@@ -1,5 +1,4 @@
-// package test does X
-// blah
+// test package header
 //
 
 use os;
